@@ -160,6 +160,16 @@ do_install()
       curl https://raw.githubusercontent.com/mbreyer/image_pipeline/4bf67d3c861cb157e8174f67250680263b18d2b7/image_publisher/CMakeLists.txt > image_pipeline/image_publisher/CMakeLists.txt
     fi
 
+    # fix rospack to match new boost
+    cd rospack/
+     curl -L https://github.com/ros/rospack/pull/80/commits/6fcee1b0d2b1c225c39a5820981166b99f0d8750.diff | patch -p1
+    cd -
+
+    # update some logging macros
+    cd geometry2
+     curl -L https://github.com/ros/geometry2/commit/0173a538f89c66e2783dc67ee3609660625e16b4.diff | patch -p1
+    cd -
+
     # Package dependencies.
     rosdep install --from-paths . --ignore-src --rosdistro ${ROS_DISTRO} -y --as-root pip:no --skip-keys google-mock --skip-keys python --skip-keys gazebo
   popd
@@ -173,7 +183,7 @@ do_install()
     sudo chown $USER ${ROS_INSTALL_DIR}
   fi
 
-  ./src/catkin/bin/catkin_make_isolated --install -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="$(brew --prefix qt5);${PWD};${PWD}/install_isolated"
+  ./src/catkin/bin/catkin_make_isolated --install -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="$(brew --prefix qt5);${PWD};${PWD}/install_isolated" -DCMAKE_FIND_FRAMEWORK=LAST
 
 
   # Parallel build.
