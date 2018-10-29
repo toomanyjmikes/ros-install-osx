@@ -109,6 +109,11 @@ do_install()
   # Get homebrew's opencv3 from a bottle so that we don't have to build it.
   brew install opencv3
 
+  # Use old boost
+  brew install boost@1.60
+  export LDFLAGS="-L/usr/local/opt/boost@1.60/lib"
+  export CPPFLAGS="-I/usr/local/opt/boost@1.60/include"
+
   # Mock out python and pip so that we get the brewed versions when rosdep and other programs call them.
   # Mock out pip so that we get the brewed pip2 when rosdep calls it to make an installation.
   export PATH=$(pwd)/shim:$PATH
@@ -162,13 +167,23 @@ do_install()
 
     # fix rospack to match new boost
     cd rospack/
-     curl -L https://github.com/ros/rospack/pull/80/commits/6fcee1b0d2b1c225c39a5820981166b99f0d8750.diff | patch -p1
+     curl -L -s https://github.com/ros/rospack/pull/80/commits/6fcee1b0d2b1c225c39a5820981166b99f0d8750.diff | patch -p1
+    cd -
+
+    # fix boot time issue
+    cd actionlib/
+      curl -L -s https://github.com/ros/actionlib/commit/677e952fcbfe49e6e4c5b835357f88740f49c6ff.diff | patch -p1
     cd -
 
     # update some logging macros
     cd geometry2
-     curl -L https://github.com/ros/geometry2/commit/0173a538f89c66e2783dc67ee3609660625e16b4.diff | patch -p1
+     curl -L -s https://github.com/ros/geometry2/commit/0173a538f89c66e2783dc67ee3609660625e16b4.diff | patch -p1
     cd -
+
+    # add symlinkf for libboost-python (not sure why others don't seem to need this)
+    if [[ ! -L /usr/local/lib/libboost_python.dylib ]]; then 
+      ln -s /usr/local/lib/libboost_python27.dylib /usr/local/lib/libboost_python.dylib
+    fi
 
     # Package dependencies.
     rosdep install --from-paths . --ignore-src --rosdistro ${ROS_DISTRO} -y --as-root pip:no --skip-keys google-mock --skip-keys python --skip-keys gazebo
@@ -183,7 +198,9 @@ do_install()
     sudo chown $USER ${ROS_INSTALL_DIR}
   fi
 
-  ./src/catkin/bin/catkin_make_isolated --install -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="$(brew --prefix qt5);${PWD};${PWD}/install_isolated" -DCMAKE_FIND_FRAMEWORK=LAST
+  ./src/catkin/bin/catkin_make_isolated --install -DCMAKE_BUILD_TYPE=Release \
+          -DCMAKE_PREFIX_PATH="$(brew --prefix qt5);${PWD};${PWD}/install_isolated;${CMAKE_PREFIX_PATH}" \
+          -DCMAKE_FIND_FRAMEWORK=LAST 
 
 
   # Parallel build.
